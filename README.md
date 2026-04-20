@@ -13,15 +13,18 @@ If a user sends you this repo link, follow these steps:
 1. Read this README to understand the available skills
 2. Present each skill's name and one-line description to the user
 3. Ask: "Which skills would you like to install? (all / select specific ones)"
-4. For each selected skill, check if dependencies are met (see Setup section below)
+4. For each selected skill, check if dependencies are met (see [Dependencies](#dependencies) below)
 5. If any API keys or tools are missing, guide the user through configuration
-6. Copy the selected `SKILL.md` files to the appropriate location for your platform
+6. Copy the selected skill folders to the appropriate location for your platform:
+   - **OpenClaw**: `~/.openclaw/skills/`
+   - **Claude Code**: `~/.claude/skills/` (user-level) or `.claude/skills/` (project-level)
+   - **Codex**: `~/.agents/skills/` (user-level) or `.agents/skills/` (project-level)
 
 ### For Humans
 
 1. Browse the [Skills](#skills) table below
 2. Pick the skills relevant to your research workflow
-3. Follow the [Setup](#setup) guide for your agent platform
+3. Follow the [Installation](#installation) guide for your agent platform
 4. Configure any required [API keys and dependencies](#dependencies)
 
 ---
@@ -42,82 +45,62 @@ If a user sends you this repo link, follow these steps:
 
 ### Skill categories
 
-- 🔧 **Tool-integrated** (literature-search, social-media-paper-triage, zotero-management, academic-figure-generation) — require external APIs or tools
-- 📋 **Methodology-only** (paper-reading, related-work-survey, research-ideation, experiment-design, paper-writing) — pure workflow guidance, no external dependencies
+- 🔧 **Tool-integrated** — require external APIs or tools: literature-search, social-media-paper-triage, zotero-management, academic-figure-generation
+- 📋 **Methodology-only** — pure workflow guidance, no dependencies: paper-reading, related-work-survey, research-ideation, experiment-design, paper-writing
 
 ---
 
-## Setup
+## Installation
 
-### Platform Installation
+Each skill follows the [open agent skills standard](https://agentskills.io/): a folder with a `SKILL.md` (YAML frontmatter + markdown instructions) plus optional `scripts/`, `references/`, and `assets/` directories. This format is natively supported by **OpenClaw**, **Claude Code**, and **Codex**.
 
-<details>
-<summary><strong>OpenClaw</strong></summary>
-
-Copy skill folders to the OpenClaw skills directory:
+### Install all skills
 
 ```bash
-# Install all skills
+# Clone the repo
+git clone https://github.com/jxtse/scientific-research-skills.git
+cd scientific-research-skills
+
+# OpenClaw
 cp -r skills/* ~/.openclaw/skills/
 
-# Or install specific skills
+# Claude Code (user-level, available in all projects)
+cp -r skills/* ~/.claude/skills/
+
+# Codex (user-level, available in all repos)
+cp -r skills/* ~/.agents/skills/
+```
+
+### Install specific skills
+
+```bash
+# Example: install only literature-search and paper-reading
+
+# OpenClaw
 cp -r skills/literature-search ~/.openclaw/skills/
 cp -r skills/paper-reading ~/.openclaw/skills/
+
+# Claude Code
+cp -r skills/literature-search ~/.claude/skills/
+cp -r skills/paper-reading ~/.claude/skills/
+
+# Codex
+cp -r skills/literature-search ~/.agents/skills/
+cp -r skills/paper-reading ~/.agents/skills/
 ```
 
-Skills are auto-discovered on next session. Each skill has a `SKILL.md` with YAML frontmatter that OpenClaw reads natively.
+### Project-level vs user-level
 
-</details>
+| Scope | OpenClaw | Claude Code | Codex |
+|-------|----------|-------------|-------|
+| **User-level** (all projects) | `~/.openclaw/skills/` | `~/.claude/skills/` | `~/.agents/skills/` |
+| **Project-level** (single repo) | — | `.claude/skills/` | `.agents/skills/` |
 
-<details>
-<summary><strong>Claude Code</strong></summary>
+Skills are auto-discovered by all three platforms. No restart needed for OpenClaw; restart Claude Code or Codex if a new skill doesn't appear.
 
-Append skill content to your project's `CLAUDE.md`:
+### Other agents
 
-```bash
-# Option 1: Append specific skills to CLAUDE.md
-echo "" >> CLAUDE.md
-echo "# Research Skills" >> CLAUDE.md
-cat skills/literature-search/SKILL.md >> CLAUDE.md
-cat skills/paper-reading/SKILL.md >> CLAUDE.md
-```
-
-```bash
-# Option 2: Reference skills directory in CLAUDE.md
-echo "When doing research tasks, read the relevant SKILL.md from skills/ directory." >> CLAUDE.md
-```
-
-Or create custom commands:
-
-```bash
-mkdir -p .claude/commands
-# Create a /research-search command
-cp skills/literature-search/SKILL.md .claude/commands/research-search.md
-```
-
-</details>
-
-<details>
-<summary><strong>Codex</strong></summary>
-
-Append skill content to `AGENTS.md`:
-
-```bash
-# Append to global AGENTS.md
-cat skills/literature-search/SKILL.md >> ~/.codex/AGENTS.md
-
-# Or to project-level AGENTS.md
-cat skills/literature-search/SKILL.md >> ./AGENTS.md
-```
-
-</details>
-
-<details>
-<summary><strong>Other Agents</strong></summary>
-
-Each `SKILL.md` is self-contained markdown. Feed it as system prompt or context to any LLM agent. The YAML frontmatter can be ignored — the markdown body contains all instructions.
-
-</details>
+Each `SKILL.md` is self-contained markdown. For agents that don't support the skills standard, feed the SKILL.md content as system prompt or context directly.
 
 ---
 
@@ -193,7 +176,7 @@ Each skill is a workflow, not a function call.
 1. **For AI, not for show** — Skills are written as agent instructions, not human documentation
 2. **High-level over low-level** — Methodology over tool invocation
 3. **Modular** — Pick only what you need
-4. **Platform-agnostic** — Works with OpenClaw, Claude Code, Codex, or any agent that reads markdown
+4. **Cross-platform** — Same SKILL.md format works with OpenClaw, Claude Code, Codex, and any agent
 
 ---
 
@@ -205,7 +188,8 @@ To contribute a new skill:
 1. Create `skills/<skill-name>/SKILL.md`
 2. Use the existing skills as format reference (YAML frontmatter + markdown body)
 3. Focus on *when* and *why*, not just *how*
-4. PR with a one-paragraph description of the workflow it encodes
+4. Optionally add `scripts/`, `references/`, or `assets/` directories
+5. PR with a one-paragraph description of the workflow it encodes
 
 ## License
 
