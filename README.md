@@ -22,6 +22,7 @@ Most existing "AI for research" repos are tool catalogs: hundreds of specific ut
 | [literature-search](skills/literature-search/) | Multi-source academic paper search with adaptive engine selection | ✅ Ready |
 | [paper-reading](skills/paper-reading/) | Structured paper reading workflow: skim → deep read → digest → archive | ✅ Ready |
 | [related-work-survey](skills/related-work-survey/) | Systematic literature survey for a research question | ✅ Ready |
+| [zotero-management](skills/zotero-management/) | Structured Zotero library management with collections, tags, and workflows | ✅ Ready |
 | [experiment-design](skills/experiment-design/) | Design experiments with baselines, ablations, metrics, and statistical rigor | 🚧 Draft |
 | [paper-writing](skills/paper-writing/) | Camera-ready paper writing workflow: outline → draft → revise → format | 🚧 Draft |
 | [research-ideation](skills/research-ideation/) | From observation to research question to contribution framing | 🚧 Draft |
