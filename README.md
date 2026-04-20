@@ -4,6 +4,8 @@ High-level research methodology skills for AI coding agents.
 
 > **Not another tool list.** Each skill encodes a *research workflow* — the kind of domain expertise that takes months to develop. Skills are written for AI agents to read and follow; this README is written for humans to configure and choose.
 
+[中文版本 (Chinese)](README_CN.md)
+
 ## Quick Start
 
 ### For AI Agents
@@ -39,14 +41,12 @@ If a user sends you this repo link, follow these steps:
 | **[related-work-survey](skills/related-work-survey/)** | Systematic literature survey: define dimensions → search each axis → build taxonomy → identify gap → position your contribution. | literature-search skill |
 | **[zotero-management](skills/zotero-management/)** | Structured Zotero library management with collections, tags, project-based organization. | Zotero + API key |
 | **[academic-figure-generation](skills/academic-figure-generation/)** | Generate publication-quality figures from method text using multi-agent pipeline (PaperBanana). | PaperBanana local deployment |
-| **[research-ideation](skills/research-ideation/)** | Go from empirical observation → research question → contribution framing. | None (methodology only) |
-| **[experiment-design](skills/experiment-design/)** | Design experiments with proper baselines, ablations, and statistical methodology. | None (methodology only) |
-| **[paper-writing](skills/paper-writing/)** | Paper writing workflow from outline to camera-ready. | None (methodology only) |
+
 
 ### Skill categories
 
 - 🔧 **Tool-integrated** — require external APIs or tools: literature-search, social-media-paper-triage, zotero-management, academic-figure-generation
-- 📋 **Methodology-only** — pure workflow guidance, no dependencies: paper-reading, related-work-survey, research-ideation, experiment-design, paper-writing
+- 📋 **Methodology-only** — pure workflow guidance, no dependencies: paper-reading, related-work-survey
 
 ---
 
