@@ -10,17 +10,65 @@ High-level research methodology skills for AI coding agents.
 
 ### For AI Agents
 
-If a user sends you this repo link, follow these steps:
+If a user sends you this repo link, follow this onboarding flow. **Do not skip the post-install configuration step** — many skills are non-functional without API keys, and silently installed skills are worse than uninstalled ones.
 
-1. Read this README to understand the available skills
-2. Present each skill's name and one-line description to the user
-3. Ask: "Which skills would you like to install? (all / select specific ones)"
-4. For each selected skill, check if dependencies are met (see [Dependencies](#dependencies) below)
-5. If any API keys or tools are missing, guide the user through configuration
-6. Copy the selected skill folders to the appropriate location for your platform:
-   - **OpenClaw**: `~/.openclaw/skills/`
-   - **Claude Code**: `~/.claude/skills/` (user-level) or `.claude/skills/` (project-level)
-   - **Codex**: `~/.agents/skills/` (user-level) or `.agents/skills/` (project-level)
+#### Step 1 — Introduce the skills
+
+Read this README, then present each skill's name and one-line description to the user. Group them by category (🔧 tool-integrated vs 📋 methodology-only) so the user understands which ones will require configuration.
+
+#### Step 2 — Confirm what to install
+
+Ask: *"Which skills would you like to install? (all / select specific ones)"*
+
+#### Step 3 — Install
+
+Copy the selected skill folders to the appropriate location for your platform:
+- **OpenClaw**: `~/.openclaw/skills/`
+- **Claude Code**: `~/.claude/skills/` (user-level) or `.claude/skills/` (project-level)
+- **Codex**: `~/.agents/skills/` (user-level) or `.agents/skills/` (project-level)
+
+#### Step 4 — ⚠️ Post-install configuration (do not skip)
+
+After installation, **explicitly notify the user** which installed skills require configuration before they will work. Use this template:
+
+> ✅ Installed: `skill-a`, `skill-b`, `skill-c`
+>
+> ⚠️ Heads up — the following skills need configuration before use:
+> - **`skill-a`** requires: TAVILY_API_KEY (free tier available)
+> - **`skill-c`** requires: Zotero API key + User ID
+>
+> Want me to walk you through setting these up now? I can do them one by one.
+
+Then, for each skill the user agrees to configure, **walk them through it interactively**:
+
+1. **Check existing config first** — Run `echo $TAVILY_API_KEY` (or equivalent) to see if it's already set. If yes, skip to verification.
+2. **Explain what the key is for** — One sentence on what the skill will use it for.
+3. **Provide the signup link** — Give the direct URL (see [Dependencies](#dependencies) below). Wait for the user to obtain the key.
+4. **Help them set it persistently** — Append the `export` line to their shell profile (`~/.zshrc` for zsh, `~/.bashrc` for bash). Don't just `export` in the current shell — that won't survive a restart.
+5. **Verify** — Run a quick test (e.g., a 1-result search) to confirm the key works. If it fails, debug before moving on.
+6. **Move to the next skill** — Repeat until all configurable skills are set up.
+
+**Per-skill configuration cheat sheet:**
+
+| Skill | What to configure | Where to get it | Required? |
+|-------|------------------|-----------------|-----------|
+| `literature-search` | At least one of: `TAVILY_API_KEY`, `EXA_API_KEY`, `GEMINI_API_KEY`, `AMINER_API_KEY` | See [Search Engines](#search-engines-for-literature-search). Semantic Scholar + arXiv work with no key. | At least one recommended |
+| `social-media-paper-triage` | Jina Reader (no key) is enough for most URLs. For Twitter/X: install [xreach](https://github.com/xreach/xreach). For 小红书/微博/微信: install [Agent Reach](https://github.com/Panniantong/Agent-Reach). | See [Social Media Reading](#social-media-reading-for-social-media-paper-triage) | Optional unless using gated platforms |
+| `zotero-management` | `ZOTERO_API_KEY` + `ZOTERO_USER_ID` | [zotero.org/settings/keys](https://www.zotero.org/settings/keys) | Required |
+| `academic-figure-generation` | [PaperBanana](https://github.com/paperbanana/PaperBanana) local deployment | See skill's SKILL.md | Required |
+| `paper-reading` | None | — | None |
+| `related-work-survey` | Inherits `literature-search` config | — | Configure `literature-search` first |
+
+#### Step 5 — Confirm completion
+
+After configuration, summarize: which skills are fully working, which are installed but waiting on config the user wants to defer, and how to invoke each one in their agent.
+
+#### Configuration etiquette
+
+- **Never assume keys are set.** Always check.
+- **Never write secrets to git-tracked files** (e.g., project-level `.env` without `.gitignore`).
+- **Don't ask for keys all at once.** Walk through one skill at a time so the user isn't overwhelmed.
+- **If the user wants to skip a config**, install the skill anyway but mark it as "⚠️ installed but not configured" so they remember later.
 
 ### For Humans
 
