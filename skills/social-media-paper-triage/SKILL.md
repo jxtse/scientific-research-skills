@@ -1,10 +1,17 @@
 ---
 name: social-media-paper-triage
 description: >
-  Extract, identify, and triage academic paper recommendations from social media
-  links (小红书, WeChat公众号, Twitter/X, etc.). Use when the user forwards a
-  social media post containing paper recommendations, or asks to find the original
-  paper from a blog/post/thread.
+  Extracts paper recommendations from social-media posts and online articles
+  (小红书 / Xiaohongshu / RedNote, 微信公众号 / WeChat Official Accounts,
+  Twitter / X threads, Reddit posts, Bilibili videos, blog posts, newsletters,
+  Jina Reader URLs), identifies the underlying academic papers, locates the
+  authoritative original sources (arXiv, conference proceedings, DOI), and
+  triages relevance to the user's research before any library action. Use when
+  the user forwards a social-media link, screenshot, or article that mentions
+  a paper / method / model, asks to "find the original paper" from a blog or
+  thread, shares a 调研贴 / 论文推荐 / paper recommendation post, or wants
+  to evaluate whether a buzz-worthy paper is worth reading before adding it
+  to Zotero.
 ---
 
 # Social Media Paper Triage

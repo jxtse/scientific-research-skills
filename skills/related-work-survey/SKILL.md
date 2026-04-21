@@ -1,9 +1,16 @@
 ---
 name: related-work-survey
 description: >
-  Conduct a systematic related work survey for a research question. Use when the
-  user is starting a new project and needs to understand the landscape, or when
-  writing the related work section of a paper.
+  Conducts a systematic related-work / literature-survey / state-of-the-art
+  review for a research question by defining survey dimensions, searching each
+  axis, building a taxonomy of prior work, identifying the gap, and producing
+  a positioning narrative for a paper's Related Work section. Goes beyond a
+  flat paper list to deliver structured analysis. Use when the user is
+  starting a new research project and needs to map the landscape, asks
+  "what's been done on X?" or "how does my idea compare to existing work?",
+  needs to write or revise a Related Work / Background / Prior Art section,
+  wants to identify a research gap or position their contribution, or asks to
+  build a taxonomy of approaches in a research area.
 ---
 
 # Related Work Survey

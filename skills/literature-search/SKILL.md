@@ -1,9 +1,16 @@
 ---
 name: literature-search
 description: >
-  Multi-source academic literature search with adaptive engine selection.
-  Use when the user asks to find papers on a topic, search for related work,
-  survey a research area, or needs to find specific papers by title/author/venue.
+  Searches and discovers academic papers across multiple sources (Semantic
+  Scholar, arXiv, Tavily, Exa, Gemini deep research, AMiner, Google Scholar)
+  with adaptive engine selection based on query type. Returns ranked,
+  deduplicated results with metadata (authors, venue, year, citations, abstract,
+  PDF link). Use when the user asks to find papers / literature / publications /
+  preprints / references on a topic, search for related work, look up a specific
+  paper by title or DOI or arXiv ID, find papers by an author, find recent SOTA
+  / state-of-the-art work, survey a research area, look for Chinese-language
+  academic work, find papers from a specific venue (ACL, EMNLP, NeurIPS, ICML,
+  CVPR, etc.), or run a deep / comprehensive literature search with synthesis.
 ---
 
 # Literature Search

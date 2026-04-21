@@ -1,9 +1,16 @@
 ---
 name: paper-reading
 description: >
-  Structured paper reading workflow from skim to deep analysis to archival.
-  Use when the user asks to read, analyze, summarize, or review a specific paper
-  (from arXiv link, PDF, Zotero item, or title).
+  Reads and analyzes academic papers (arXiv preprints, conference / journal
+  PDFs, Zotero items) at three configurable depths: quick skim (2 min),
+  standard read (10 min), or deep analysis (30 min). Produces structured
+  digests covering problem, method, key innovation, results, limitations,
+  reproducibility, hidden assumptions, and connections to the user's other
+  work. Use when the user shares an arXiv link, PDF, or paper title and asks
+  to read / summarize / digest / TL;DR / analyze / review / critique / explain
+  / break down a paper, asks about a paper's contributions / methods /
+  results / equations / figures, wants to compare two papers side by side, or
+  needs a reading note for their records.
 ---
 
 # Paper Reading

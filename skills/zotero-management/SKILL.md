@@ -1,9 +1,18 @@
 ---
 name: zotero-management
 description: >
-  Manage a Zotero academic library with structured collections, tags, and workflows.
-  Use when the user asks to add papers to Zotero, organize their library, check
-  reading queue, or manage literature for a project.
+  Manages a Zotero academic reference library through both the local API
+  (localhost:23119, read-only) and the Web API (api.zotero.org, read-write),
+  using a structured collection hierarchy (Inbox / Active Projects /
+  Background / Reading Queue / Archive / Meta) plus project, status, priority,
+  and type tags. Handles adding papers with full metadata, deduplication,
+  attaching provenance notes, moving items between collections, updating tags
+  after reading, listing the prioritized reading queue, and setting up the
+  literature scaffold for a new project. Use when the user asks to add /
+  save / file / organize a paper in Zotero, check / list / clean up the
+  reading queue, move papers between collections, tag papers for a project,
+  query their library ("what do I have on X?"), or set up Zotero for a new
+  research project.
 ---
 
 # Zotero Library Management

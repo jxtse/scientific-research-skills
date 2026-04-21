@@ -1,10 +1,15 @@
 ---
 name: academic-figure-generation
 description: >
-  Generate publication-quality academic figures, framework diagrams, and pipeline
-  illustrations from paper method text and figure captions. Use when the user asks
-  to draw a figure for a paper, create a method overview diagram, or visualize a
-  research pipeline/framework/architecture.
+  Generates publication-quality academic figures, framework diagrams, pipeline
+  illustrations, system architectures, and method overviews from paper text and
+  figure captions using a multi-agent pipeline (PaperBanana). Produces
+  camera-ready PNG/PDF figures suitable for ACL, NeurIPS, ICML, EMNLP, and
+  similar venues. Use when the user asks to draw, generate, design, or create a
+  figure for a paper, build a method/architecture/framework/pipeline diagram,
+  visualize a model or system, prepare a Figure 1 / overview diagram, render a
+  TikZ or matplotlib figure for a manuscript, or refine an existing academic
+  figure for a camera-ready submission.
 ---
 
 # Academic Figure Generation
