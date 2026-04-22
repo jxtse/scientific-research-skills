@@ -1,134 +1,76 @@
 ---
 name: academic-figure-generation
 description: >
-  Generates publication-quality academic figures, framework diagrams, pipeline
-  illustrations, system architectures, and method overviews from paper text and
-  figure captions using a multi-agent pipeline (PaperBanana / PaperVizAgent).
-  Use when the user asks to draw, generate, design, or create a figure for a paper, or refine an existing academic figure for a camera-ready submission.
+  Generates publication-quality academic figures (framework diagrams,
+  pipeline illustrations, system architectures, method overviews) from a
+  paper's method text and a target caption, using a local PaperBanana
+  multi-agent pipeline (Retriever → Planner → Stylist → Visualizer →
+  Critic). Produces camera-ready PNG candidates suitable for ACL,
+  NeurIPS, ICML, EMNLP, and similar venues. Use when the user asks to
+  draw, design, or generate a figure for a paper, build a method /
+  framework / pipeline / architecture diagram, or refine an existing
+  figure for camera-ready submission.
 ---
 
 # Academic Figure Generation
 
-Generate publication-quality figures for academic papers using the
-**PaperBanana** multi-agent pipeline (Retriever → Planner → Stylist →
-Visualizer → Critic) with pluggable image backends.
+Thin CLI wrapper around **PaperBanana** (a.k.a. PaperVizAgent), a
+multi-agent figure-generation pipeline for academic papers.
 
-## Image Backends
+The skill provides exactly one script: `scripts/generate.py`. It feeds
+your method text + caption into PaperBanana and writes N candidate PNGs.
+Model selection and API keys come from PaperBanana's own
+`configs/model_config.yaml` — the wrapper does not override them.
 
-| Backend | Model id | Strengths | Pricing notes |
-|---------|----------|-----------|---------------|
-| **NanoBanana Pro** *(default)* | `gemini-3-pro-image-preview` | Clean, paper-style vector aesthetics; strong at simple block / pipeline diagrams | Google AI Studio monthly spending cap |
-| **GPT-Image-2** *(fallback / explicit)* | `openai/gpt-5.4-image-2` | Best-in-class typography, dense layouts, multilingual text rendering, 2K output | OpenRouter pay-as-you-go (~$0.20–0.30 per 1K image) |
+## One-time setup
 
-The selection logic is, in order of priority:
+1. **Clone PaperBanana** somewhere convenient:
 
-1. CLI flag `--image-model <id>`
-2. Env var `PAPERBANANA_IMAGE_MODEL`
-3. `configs/model_config.yaml` → `defaults.image_model_name`
-4. Default: `gemini-3-pro-image-preview`
+   ```bash
+   git clone https://github.com/dwzhu-pku/PaperBanana.git ~/PaperBanana
+   cd ~/PaperBanana
+   uv venv && uv pip install -r requirements.txt
+   ```
 
-If `--auto-fallback` is on (the default) and the primary backend fails with a
-quota / billing / rate-limit error, the pipeline automatically retries with
-the configured fallback (default: `openai/gpt-5.4-image-2`). Use
-`--no-fallback` while debugging.
+2. **Configure `configs/model_config.yaml`** — set the image model and
+   the matching API key. Two common setups:
 
-See [`references/backend_routing.md`](references/backend_routing.md) for the
-exact error patterns that trigger the fallback.
+   ```yaml
+   defaults:
+     image_model_name: "gemini-3-pro-image-preview"   # or "openai/gpt-5.4-image-2"
+     model_name: "gemini-3.1-pro-preview"             # text model for Planner/Stylist/Critic
 
-## Text Model
+   api_keys:
+     google_api_key: "..."        # required for Gemini models
+     openrouter_api_key: ""       # required for openai/gpt-5.4-image-2
+   ```
 
-Independent from the image backend. By default, text agents call **Google
-AI directly** using `GOOGLE_API_KEY` (or `GEMINI_API_KEY`). Recommended
-setups:
-
-- **Google AI direct** *(default, simplest)*:
-  ```
-  --text-model gemini-3.1-pro-preview
-  # requires GOOGLE_API_KEY in env
-  ```
-- **OpenRouter** (any chat-completion model):
-  ```
-  --text-model anthropic/claude-opus-4.7 --text-base-url https://openrouter.ai/api/v1
-  # requires OPENROUTER_API_KEY in env
-  ```
-- **Local OpenAI-compatible proxy** *(advanced; only if you actually run
-  one — e.g. copilot-api, vLLM, ollama)*:
-  ```
-  --text-model claude-opus-4.7 --text-base-url http://127.0.0.1:4141/v1
-  ```
-
-  The skill does **not** auto-probe local ports; you must opt in explicitly.
-
-## When to Use
-
-- "Draw a figure for the paper"
-- Need a method overview / framework diagram / pipeline illustration
-- Need to visualize an architecture or system design
-- Preparing camera-ready Figure 1 for an ACL/NeurIPS/EMNLP submission
+   Use Gemini if you have a Google AI key; use GPT-Image-2 via OpenRouter
+   if you have an OpenRouter key. Pick one — there's nothing else to wire
+   up.
 
 ## Workflow
 
-### Step 1: Locate or install PaperBanana
+### Step 1: Gather inputs
 
-PaperBanana is the underlying pipeline. Check for an existing local install:
+You need:
 
-```bash
-ls /Users/richard/.openclaw/workspace/projects/PaperBanana/.venv/bin/python 2>/dev/null \
-  || echo "PaperBanana not installed at default location"
-```
+1. **Method text**: the relevant section of the paper describing the
+   approach (`./method.md` or `./method.tex`).
+2. **Figure caption**: the target caption, e.g. `"Figure 1: Overview of
+   our framework"`.
 
-If missing, install via:
-
-```bash
-git clone https://github.com/google-research/PaperBanana.git ~/PaperBanana
-cd ~/PaperBanana
-uv venv && uv pip install -r requirements.txt
-```
-
-Then point the skill at it via `--paperbanana-root <path>` or
-`PAPERBANANA_ROOT` env var.
-
-### Step 2: Apply the multi-backend patch (one-time)
-
-PaperBanana ships with branches for `gemini-*` and `gpt-image-*` models only.
-This skill ships a small patch in
-[`scripts/patch_multibackend.py`](scripts/patch_multibackend.py) that adds:
-
-- An OpenRouter chat-completions image client (for `openai/gpt-5.4-image-2`).
-- A copilot-api / OpenAI-compatible text client (so non-Gemini text models can
-  drive Planner/Stylist/Critic without rewriting the agents).
-- Quota-aware automatic fallback for the image backend.
-
-Apply it once:
-
-```bash
-uv run scripts/patch_multibackend.py --paperbanana-root /path/to/PaperBanana
-```
-
-The patch is idempotent — running it again on an already-patched checkout is a
-no-op. See [`references/patch_overview.md`](references/patch_overview.md) for
-what it changes.
-
-### Step 3: Gather Input
-
-You need two things:
-
-1. **Method text**: The relevant section of the paper describing the approach
-2. **Figure caption**: The target caption (e.g., "Figure 1: Overview of our
-   proposed framework")
-
-If the user only gives a vague request, ask for:
+If the user only gives a vague request, ask:
 
 - What aspect of the method should the figure focus on?
 - Style? (block diagram, flowchart, pipeline, architecture, comparison)
 - Venue / column width? (ACL ≤ 7.5", NeurIPS single-column 5.5")
 
-### Step 4: Generate
-
-Use [`scripts/generate.py`](scripts/generate.py):
+### Step 2: Generate
 
 ```bash
-uv run scripts/generate.py \
+~/PaperBanana/.venv/bin/python scripts/generate.py \
+  --paperbanana-root ~/PaperBanana \
   --method-file ./method.md \
   --caption "Figure 1: Overview of our framework" \
   --out-dir ./figures/v1 \
@@ -136,80 +78,62 @@ uv run scripts/generate.py \
   --aspect-ratio 16:9
 ```
 
-Common flags:
-
 | Flag | Default | Notes |
 |------|---------|-------|
-| `--image-model` | `gemini-3-pro-image-preview` | NanoBanana Pro by default; pass `openai/gpt-5.4-image-2` for GPT-Image-2 |
-| `--fallback-image-model` | `openai/gpt-5.4-image-2` | Used when primary backend quota-fails |
-| `--auto-fallback` / `--no-fallback` | `--auto-fallback` | Toggle quota-triggered retry |
-| `--text-model` | `gemini-3.1-pro-preview` | Drives Planner / Stylist / Critic |
-| `--text-base-url` | *(unset)* | Set only for OpenRouter / local OpenAI-compatible proxies; default goes direct to Google AI |
+| `--paperbanana-root` | (required) | Path to your PaperBanana checkout |
+| `--method-file` | (required) | Method section as a text/markdown file |
+| `--caption` | (required) | Target figure caption |
+| `--out-dir` | (required) | Where PNGs land |
 | `--candidates` | `3` | Independent diagram candidates |
-| `--max-critic-rounds` | `1` | How many critique → revise loops |
-| `--exp-mode` | `demo_planner_critic` | `vanilla` skips the multi-agent flow (just method+caption → image) |
-| `--retrieval` | `none` | Set `auto` to retrieve style references (more tokens) |
+| `--max-concurrent` | `2` | Cap concurrent runs (be gentle on quota) |
+| `--exp-mode` | `demo_planner_critic` | `vanilla` skips Planner/Critic (fastest, lowest quality) |
 | `--aspect-ratio` | `16:9` | One of `21:9`, `16:9`, `3:2`, `1:1` |
+| `--max-critic-rounds` | `1` | Critique → revise loops |
 
-### Step 5: Present & Iterate
+### Step 3: Present & iterate
 
-- Show all candidates to the user
-- Common refinements: color scheme, layout, label text, font size
-- Re-run with adjusted `--candidates` count or a tweaked caption
+- Show all candidates to the user.
+- Common refinements: color scheme, layout, label text, font size.
+- Re-run with a tweaked caption or more candidates.
 
-### Step 6: Export
+### Step 4: Export
 
-- PNG outputs land in `--out-dir` as `candidate_0.png`, `candidate_1.png`, …
-- Convert to PDF for camera-ready: `magick candidate_0.png candidate_0.pdf`
-  or use `cairosvg` / `inkscape` for true vector when the source is SVG/TikZ
+- PNGs are written as `candidate_0.png`, `candidate_1.png`, … in `--out-dir`.
+- For camera-ready PDFs: `magick candidate_0.png candidate_0.pdf`.
 
-## Style Guidelines
+## Style guidelines
 
-- **Color**: Consistent, colorblind-friendly palette
-- **Fonts**: Match the paper's body font when possible (Times for ACL/EMNLP,
+- **Color**: consistent, colorblind-friendly palette
+- **Fonts**: match the paper's body font (Times for ACL/EMNLP,
   Helvetica/Arial for many ML venues)
-- **Labels**: Concise; no full sentences inside the diagram
-- **Arrows**: Solid for data flow, dashed for optional / feedback loops
-- **Whitespace**: Don't overcrowd — reviewers skim figures in seconds
+- **Labels**: concise; no full sentences inside the diagram
+- **Arrows**: solid for data flow, dashed for optional / feedback loops
+- **Whitespace**: don't overcrowd — reviewers skim figures in seconds
 
-## Common Figure Types
+## Common figure types
 
-| Type | When to Use | Key Elements |
-|------|-------------|-------------|
-| **Pipeline / Flowchart** | Sequential processing | Boxes + arrows, L→R or T→B |
-| **Architecture** | System overview | Nested boxes, clear module boundaries |
-| **Comparison** | Before/after, baseline vs proposed | Side-by-side panels |
-| **Ablation** | Component contributions | Bar charts or tables w/ highlighted rows |
-| **Framework** | High-level conceptual overview | Abstract shapes, minimal detail |
-
-## Required Credentials
-
-| Backend used | Env var(s) needed |
-|---|---|
-| Default (Gemini text + Gemini image) | `GOOGLE_API_KEY` *(or `GEMINI_API_KEY`)* |
-| Image via OpenRouter (`openai/gpt-5.4-image-2`, etc.) | `OPENROUTER_API_KEY` |
-| Text via OpenRouter | `OPENROUTER_API_KEY` + `--text-base-url https://openrouter.ai/api/v1` |
-| Text via local proxy | the proxy's required vars + `--text-base-url <your-url>` |
-
-Missing credentials are reported as warnings at startup, but the run is
-not aborted — so the underlying error from the API is what you'll see if
-a key is wrong.
+| Type | When to use | Key elements |
+|------|-------------|--------------|
+| Pipeline / Flowchart | Sequential processing | Boxes + arrows, L→R or T→B |
+| Architecture | System overview | Nested boxes, clear module boundaries |
+| Comparison | Before/after, baseline vs proposed | Side-by-side panels |
+| Ablation | Component contributions | Bar charts, highlighted rows |
+| Framework | High-level conceptual overview | Abstract shapes, minimal detail |
 
 ## Troubleshooting
 
-- **`429 RESOURCE_EXHAUSTED` on Gemini and `--no-fallback`**: hit Google AI
-  Studio monthly cap. Either raise the cap, set
-  `--image-model openai/gpt-5.4-image-2`, or remove `--no-fallback`.
-- **`OpenRouter Client not initialized`**: missing `OPENROUTER_API_KEY` env
-  var.
-- **Empty `images` field from OpenRouter**: the model occasionally refuses
-  prompts that look NSFW. Reword the caption.
-- **Long latency (>5 min)**: most of the wall time is the image model. Lower
-  `--candidates` or set `--max-critic-rounds 0` for faster iteration.
+- **`429 RESOURCE_EXHAUSTED` on Gemini**: monthly Google AI Studio
+  spending cap hit. Raise it at <https://ai.studio/spend> or switch
+  `image_model_name` to `openai/gpt-5.4-image-2` and set
+  `OPENROUTER_API_KEY`.
+- **`OpenRouter Client not initialized`**: `OPENROUTER_API_KEY` not in env
+  and `openrouter_api_key` not in yaml.
+- **No PNGs in output dir**: check `out_dir/results.json` for the raw
+  per-candidate response and any error messages.
+- **Long latency (>5 min)**: most wall time is the image model. Lower
+  `--candidates` or use `--exp-mode vanilla` for faster iteration.
 
-## References
+## Links
 
-- Backend routing & fallback rules: [`references/backend_routing.md`](references/backend_routing.md)
-- Patch overview: [`references/patch_overview.md`](references/patch_overview.md)
-- PaperBanana paper: https://huggingface.co/papers/2601.23265
-- PaperBananaBench dataset: https://huggingface.co/datasets/dwzhu/PaperBananaBench
+- PaperBanana repo: <https://github.com/dwzhu-pku/PaperBanana>
+- PaperVizAgent (Google Research version of the same project): <https://github.com/google-research/papervizagent>
