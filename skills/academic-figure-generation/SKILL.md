@@ -4,15 +4,7 @@ description: >
   Generates publication-quality academic figures, framework diagrams, pipeline
   illustrations, system architectures, and method overviews from paper text and
   figure captions using a multi-agent pipeline (PaperBanana / PaperVizAgent).
-  Supports both Google Gemini "NanoBanana Pro" (gemini-3-pro-image-preview) and
-  OpenAI GPT-Image-2 (openai/gpt-5.4-image-2 via OpenRouter) as image
-  generation backends, with optional automatic fallback when the primary
-  backend hits quota limits. Produces camera-ready PNG figures suitable for
-  ACL, NeurIPS, ICML, EMNLP, and similar venues. Use when the user asks to
-  draw, generate, design, or create a figure for a paper, build a method /
-  architecture / framework / pipeline diagram, visualize a model or system,
-  prepare a Figure 1 / overview diagram, or refine an existing academic figure
-  for a camera-ready submission.
+  Use when the user asks to draw, generate, design, or create a figure for a paper, or refine an existing academic figure for a camera-ready submission.
 ---
 
 # Academic Figure Generation
