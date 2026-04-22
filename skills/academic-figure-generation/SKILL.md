@@ -5,11 +5,7 @@ description: >
   pipeline illustrations, system architectures, method overviews) from a
   paper's method text and a target caption, using a local PaperBanana
   multi-agent pipeline (Retriever → Planner → Stylist → Visualizer →
-  Critic). Produces camera-ready PNG candidates suitable for ACL,
-  NeurIPS, ICML, EMNLP, and similar venues. Use when the user asks to
-  draw, design, or generate a figure for a paper, build a method /
-  framework / pipeline / architecture diagram, or refine an existing
-  figure for camera-ready submission.
+  Critic).
 ---
 
 # Academic Figure Generation
