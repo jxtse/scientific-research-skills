@@ -11,8 +11,12 @@ PaperBanana users can opt in.
 
 1. Adds an OpenRouter `AsyncOpenAI` client (`openrouter_client`) that points
    at `https://openrouter.ai/api/v1` with PaperBanana referer headers.
-2. Adds a copilot-api / OpenAI-compatible client (`copilot_client`) defaulting
-   to `http://127.0.0.1:4141/v1`. Used by `_call_copilot_chat_async`.
+2. Adds a generic OpenAI-compatible client (`copilot_client`) that's
+   **disabled by default** and only initialised when the user sets
+   `COPILOT_BASE_URL` (or `copilot_base_url` in the yaml). This is the
+   escape hatch for users running a local proxy (vLLM, ollama, copilot-api,
+   etc.); it is not enabled or auto-probed without explicit configuration.
+   Used by `_call_copilot_chat_async`.
 3. Adds `call_openrouter_image_chat_with_retry_async()` — same return contract
    as `call_openai_image_generation_with_retry_async()` (a list with one
    base64 PNG), but talks to the OpenRouter chat-completions endpoint with
@@ -24,9 +28,11 @@ PaperBanana users can opt in.
    message; `candidate_count` becomes N parallel sampled calls.
 5. **Front-door routing**: at the top of
    `call_gemini_with_retry_async()`, if `model_name` doesn't match
-   `"gemini" in name and "/" not in name`, the call is transparently routed
-   to `_call_copilot_chat_async()`. This means **no agent file has to change**
-   to switch the text backbone — the change is in one place.
+   `"gemini" in name and "/" not in name`, AND a `copilot_client` was
+   initialised, the call is transparently routed to
+   `_call_copilot_chat_async()`. If no proxy is configured, the call still
+   goes to Google AI direct — the default path stays identical to upstream
+   PaperBanana.
 6. Adds the quota-aware fallback wrapper around image calls. The wrapper
    catches the trigger conditions documented in `backend_routing.md` and
    retries with the configured fallback model.
@@ -53,8 +59,9 @@ values):
 ```yaml
 api_keys:
   openrouter_api_key: ""    # or set OPENROUTER_API_KEY env var
-  copilot_base_url: ""      # default: http://127.0.0.1:4141/v1
-  copilot_api_key: ""       # default: "copilot"
+  copilot_base_url: ""      # opt-in only; e.g. http://127.0.0.1:4141/v1 for copilot-api,
+                            #                  http://127.0.0.1:8000/v1 for vLLM, etc.
+  copilot_api_key: ""       # whatever your local proxy expects
 ```
 
 ## What the patch does NOT change

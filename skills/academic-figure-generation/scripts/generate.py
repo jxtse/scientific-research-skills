@@ -46,14 +46,13 @@ from urllib.parse import urlparse
 DEFAULT_PAPERBANANA_ROOT = Path(
     os.environ.get(
         "PAPERBANANA_ROOT",
-        str(Path.home() / ".openclaw/workspace/projects/PaperBanana"),
+        str(Path.home() / "PaperBanana"),
     )
 ).expanduser()
 
 DEFAULT_IMAGE_MODEL = "gemini-3-pro-image-preview"
 DEFAULT_FALLBACK_IMAGE_MODEL = "openai/gpt-5.4-image-2"
 DEFAULT_TEXT_MODEL = "gemini-3.1-pro-preview"
-DEFAULT_COPILOT_BASE_URL = "http://127.0.0.1:4141/v1"
 
 
 # ---------------------------------------------------------------------------
@@ -74,12 +73,19 @@ def _endpoint_reachable(url: str, timeout: float = 0.6) -> bool:
 
 
 def _ensure_patched(paperbanana_root: Path, auto_patch: bool) -> None:
-    """Idempotently apply the multi-backend patch if missing."""
+    """Idempotently apply the multi-backend patch if missing.
+
+    Detects three states for `utils/generation_utils.py`:
+      * our marker present → nothing to do
+      * upstream-already-patched (has both openrouter_client init AND the
+        image-chat helper) → nothing to do
+      * neither → try to apply our patch, but treat failures as warnings
+        rather than fatal errors (upstream layout drifts).
+    """
     patch_script = Path(__file__).resolve().parent / "patch_multibackend.py"
     if not patch_script.exists():
         return  # nothing to do
 
-    # Cheap check: look for the patch marker in generation_utils.py
     target = paperbanana_root / "utils" / "generation_utils.py"
     if target.exists():
         try:
@@ -87,12 +93,17 @@ def _ensure_patched(paperbanana_root: Path, auto_patch: bool) -> None:
         except OSError:
             txt = ""
         if "paperbanana-multibackend-patch" in txt:
-            return  # already patched
+            return  # already stamped by us
+        if (
+            "openrouter_client = AsyncOpenAI" in txt
+            and "call_openrouter_image_chat_with_retry_async" in txt
+        ):
+            return  # upstream already shipped multi-backend dispatch
 
     if not auto_patch:
         print(
             "note: multi-backend patch not applied; pass --auto-patch or run "
-            "scripts/patch_multibackend.py manually.",
+            "scripts/patch_multibackend.py manually if you need it.",
             file=sys.stderr,
         )
         return
@@ -108,7 +119,11 @@ def _ensure_patched(paperbanana_root: Path, auto_patch: bool) -> None:
     )
     if rc != 0:
         print(
-            f"warn: patch_multibackend.py exited with rc={rc}; continuing.",
+            f"warn: patch_multibackend.py exited with rc={rc}; the underlying\n"
+            f"      PaperBanana checkout may already supply equivalent\n"
+            f"      functionality, or its layout may have drifted from what\n"
+            f"      the patch expects. Continuing — image generation will\n"
+            f"      either Just Work or fail with a clearer error below.",
             file=sys.stderr,
         )
 
@@ -121,7 +136,13 @@ def _resolve_text_endpoint(
 
     Returns (final_model, final_base_url_or_None). If `final_base_url` is
     None, the underlying agents fall back to their built-in Google AI
-    direct path.
+    direct path — which is the right default for almost everyone.
+
+    The `--text-base-url` flag is only meant for advanced users who run a
+    local OpenAI-compatible proxy (e.g. copilot-api, vLLM, ollama). We do
+    NOT auto-probe well-known ports, because surprise-routing through a
+    random local server is exactly the kind of behaviour that breaks
+    reproducibility.
     """
     if text_base_url:
         if _endpoint_reachable(text_base_url):
@@ -131,11 +152,6 @@ def _resolve_text_endpoint(
             f"to Google AI direct for {text_model}.",
             file=sys.stderr,
         )
-        return text_model, None
-
-    # No explicit base_url — try the well-known copilot-api on :4141.
-    if _endpoint_reachable(DEFAULT_COPILOT_BASE_URL):
-        return text_model, DEFAULT_COPILOT_BASE_URL
     return text_model, None
 
 
@@ -247,7 +263,11 @@ def main() -> int:
     ap.add_argument(
         "--text-base-url",
         default=os.environ.get("PAPERBANANA_TEXT_BASE_URL"),
-        help="OpenAI-compatible base URL for the text model (e.g. local copilot-api).",
+        help=(
+            "Optional OpenAI-compatible base URL for the text model. Only "
+            "set this if you run a local proxy (copilot-api, vLLM, ollama, "
+            "etc.); otherwise text agents call Google AI directly."
+        ),
     )
 
     # Plumbing
@@ -317,6 +337,11 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # ---- ensure patch ------------------------------------------------------
+    # NOTE: most modern PaperBanana / PaperVizAgent checkouts already ship
+    # the multi-backend dispatch upstream. We try to detect that and skip
+    # patching automatically. The patch script itself is best-effort against
+    # one specific intermediate upstream layout; if your checkout differs,
+    # it will warn and continue rather than abort.
     _ensure_patched(project_root, auto_patch=args.auto_patch)
 
     # ---- resolve text endpoint --------------------------------------------

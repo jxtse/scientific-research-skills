@@ -37,16 +37,27 @@ exact error patterns that trigger the fallback.
 
 ## Text Model
 
-Independent from the image backend. Recommended setups:
+Independent from the image backend. By default, text agents call **Google
+AI directly** using `GOOGLE_API_KEY` (or `GEMINI_API_KEY`). Recommended
+setups:
 
-- **Local copilot-api on `:4141`** (preferred when available — it routes
-  through GitHub Copilot quota, so the text agents are effectively free):
+- **Google AI direct** *(default, simplest)*:
   ```
-  --text-model gemini-3.1-pro-preview     # or claude-opus-4.7, gpt-5.4
-  --text-base-url http://127.0.0.1:4141/v1
+  --text-model gemini-3.1-pro-preview
+  # requires GOOGLE_API_KEY in env
   ```
-- **Direct Google AI**: any `gemini-*` id, with `GOOGLE_API_KEY` set.
-- **Anything OpenAI-compatible**: point `--text-base-url` at your endpoint.
+- **OpenRouter** (any chat-completion model):
+  ```
+  --text-model anthropic/claude-opus-4.7 --text-base-url https://openrouter.ai/api/v1
+  # requires OPENROUTER_API_KEY in env
+  ```
+- **Local OpenAI-compatible proxy** *(advanced; only if you actually run
+  one — e.g. copilot-api, vLLM, ollama)*:
+  ```
+  --text-model claude-opus-4.7 --text-base-url http://127.0.0.1:4141/v1
+  ```
+
+  The skill does **not** auto-probe local ports; you must opt in explicitly.
 
 ## When to Use
 
@@ -133,7 +144,7 @@ Common flags:
 | `--fallback-image-model` | `openai/gpt-5.4-image-2` | Used when primary backend quota-fails |
 | `--auto-fallback` / `--no-fallback` | `--auto-fallback` | Toggle quota-triggered retry |
 | `--text-model` | `gemini-3.1-pro-preview` | Drives Planner / Stylist / Critic |
-| `--text-base-url` | `http://127.0.0.1:4141/v1` if reachable, else direct Google AI | OpenAI-compatible endpoint for text model |
+| `--text-base-url` | *(unset)* | Set only for OpenRouter / local OpenAI-compatible proxies; default goes direct to Google AI |
 | `--candidates` | `3` | Independent diagram candidates |
 | `--max-critic-rounds` | `1` | How many critique → revise loops |
 | `--exp-mode` | `demo_planner_critic` | `vanilla` skips the multi-agent flow (just method+caption → image) |
@@ -170,6 +181,19 @@ Common flags:
 | **Comparison** | Before/after, baseline vs proposed | Side-by-side panels |
 | **Ablation** | Component contributions | Bar charts or tables w/ highlighted rows |
 | **Framework** | High-level conceptual overview | Abstract shapes, minimal detail |
+
+## Required Credentials
+
+| Backend used | Env var(s) needed |
+|---|---|
+| Default (Gemini text + Gemini image) | `GOOGLE_API_KEY` *(or `GEMINI_API_KEY`)* |
+| Image via OpenRouter (`openai/gpt-5.4-image-2`, etc.) | `OPENROUTER_API_KEY` |
+| Text via OpenRouter | `OPENROUTER_API_KEY` + `--text-base-url https://openrouter.ai/api/v1` |
+| Text via local proxy | the proxy's required vars + `--text-base-url <your-url>` |
+
+Missing credentials are reported as warnings at startup, but the run is
+not aborted — so the underlying error from the API is what you'll see if
+a key is wrong.
 
 ## Troubleshooting
 

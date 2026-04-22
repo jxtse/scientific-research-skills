@@ -36,17 +36,42 @@ def patch_generation_utils(util_path: Path) -> bool:
     """Add OpenRouter + copilot clients, image-chat helper, and routing layer."""
     src = util_path.read_text()
     if PATCH_MARKER in src:
-        return False  # already patched
+        return False  # already patched (our own marker)
+
+    # Upstream-already-patched detection: newer PaperBanana releases ship
+    # the OpenRouter client + image-chat helper out of the box. If both are
+    # present, stamp a marker and bail — nothing for us to do.
+    if (
+        "openrouter_client = AsyncOpenAI" in src
+        and "call_openrouter_image_chat_with_retry_async" in src
+    ):
+        _backup_once(util_path)
+        util_path.write_text(
+            "# === paperbanana-multibackend-patch: upstream already patched ===\n"
+            + src
+        )
+        return True
 
     _backup_once(util_path)
 
     # 1) Insert OpenRouter + copilot client init after the existing OpenAI client init.
-    openai_client_anchor = "openai_client = AsyncOpenAI(api_key=openai_api_key)"
-    if openai_client_anchor not in src:
-        raise RuntimeError(
-            "Could not find OpenAI client init anchor in generation_utils.py — "
-            "either the file was already heavily customised or the upstream layout changed."
+    # Try multiple known anchor variants since upstream wording varies.
+    openai_client_anchor = None
+    for candidate in (
+        "openai_client = AsyncOpenAI(api_key=openai_api_key)",
+        "openai_client = AsyncOpenAI(api_key=key)",
+    ):
+        if candidate in src:
+            openai_client_anchor = candidate
+            break
+    if openai_client_anchor is None:
+        print(
+            f"warn: no recognised OpenAI client init in {util_path.name}; skipping "
+            "client-block insertion. Most upstream forks already initialise OpenRouter "
+            "on their own — if that's the case, this skip is harmless.",
+            file=sys.stderr,
         )
+        return False
 
     client_block = dedent(f"""\
 
@@ -70,21 +95,23 @@ def patch_generation_utils(util_path: Path) -> bool:
             print("Warning: OpenRouter Client not initialized (set OPENROUTER_API_KEY).")
             openrouter_client = None
 
-        # Local OpenAI-compatible proxy (e.g. copilot-api on http://127.0.0.1:4141).
-        # Used to route non-Gemini text models like claude-opus-4.7 through the
-        # Gemini agent surface without touching the per-agent files.
+        # Optional OpenAI-compatible proxy for routing non-Gemini text models
+        # (e.g. anthropic/claude-opus-4.7 via copilot-api, vLLM, ollama, etc.).
+        # OFF BY DEFAULT — only initialised if the user explicitly sets a
+        # base URL. Without it, non-Gemini text model ids will fall through
+        # to whatever upstream PaperBanana does with them.
         copilot_base_url = get_config_val(
-            "api_keys", "copilot_base_url", "COPILOT_BASE_URL", "http://127.0.0.1:4141/v1"
+            "api_keys", "copilot_base_url", "COPILOT_BASE_URL", ""
         )
         copilot_api_key = get_config_val(
-            "api_keys", "copilot_api_key", "COPILOT_API_KEY", "copilot"
+            "api_keys", "copilot_api_key", "COPILOT_API_KEY", ""
         )
         if copilot_base_url:
             copilot_client = AsyncOpenAI(
-                api_key=copilot_api_key or "copilot",
+                api_key=copilot_api_key or "sk-no-key-required",
                 base_url=copilot_base_url,
             )
-            print(f"Initialized copilot/local OpenAI-compatible client at {{copilot_base_url}}")
+            print(f"Initialized OpenAI-compatible proxy client at {{copilot_base_url}}")
         else:
             copilot_client = None
         # === end paperbanana-multibackend-patch ===
@@ -392,10 +419,12 @@ def patch_yaml(yaml_path: Path) -> bool:
 
         # === paperbanana-multibackend-patch: extra providers ===
         # Set these via env vars (preferred) or fill in below.
-        # Env var names:  OPENROUTER_API_KEY, COPILOT_BASE_URL, COPILOT_API_KEY
-        #   openrouter_api_key: ""
-        #   copilot_base_url: "http://127.0.0.1:4141/v1"
-        #   copilot_api_key: "copilot"
+        #   openrouter_api_key: ""            # or env: OPENROUTER_API_KEY
+        #
+        # OPTIONAL local OpenAI-compatible proxy (vLLM / ollama / copilot-api etc.)
+        # Off by default; only enabled when copilot_base_url is set.
+        #   copilot_base_url: ""               # or env: COPILOT_BASE_URL
+        #   copilot_api_key:  ""               # or env: COPILOT_API_KEY
         # === end paperbanana-multibackend-patch ===
     ''')
     yaml_path.write_text(src.rstrip() + "\n" + addition)
@@ -434,10 +463,27 @@ def main() -> int:
             f = root / rel
             if not f.exists():
                 print(f"  MISSING  {rel}")
-            elif PATCH_MARKER in f.read_text() or (
-                rel.endswith(".yaml") and "openrouter_api_key" in f.read_text()
-            ):
-                print(f"  patched  {rel}")
+                continue
+            txt = f.read_text()
+            # Our marker present → patched.
+            ours = PATCH_MARKER in txt
+            yaml_ok = rel.endswith(".yaml") and "openrouter_api_key" in txt
+            # Upstream-already-patched detection (matches the same heuristics
+            # used by the patch functions themselves).
+            upstream_utils = (
+                rel == "utils/generation_utils.py"
+                and "openrouter_client = AsyncOpenAI" in txt
+                and "call_openrouter_image_chat_with_retry_async" in txt
+            )
+            upstream_agent = (
+                rel.startswith("agents/")
+                and '"gemini" in self.model_name and "/" not in self.model_name' in txt
+                and 'self.model_name.startswith("openai/")' in txt
+                and 'and "image" in self.model_name' in txt
+            )
+            if ours or yaml_ok or upstream_utils or upstream_agent:
+                tag = "upstream" if (upstream_utils or upstream_agent) and not ours else "patched "
+                print(f"  {tag}  {rel}")
             else:
                 print(f"   needs patch  {rel}")
         return 0
