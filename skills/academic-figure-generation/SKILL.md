@@ -86,9 +86,9 @@ If the user only gives a vague request, ask:
 | `--out-dir` | (required) | Where PNGs land |
 | `--candidates` | `3` | Independent diagram candidates |
 | `--max-concurrent` | `2` | Cap concurrent runs (be gentle on quota) |
-| `--exp-mode` | `demo_planner_critic` | `vanilla` skips Planner/Critic (fastest, lowest quality) |
+| `--exp-mode` | `demo_full` | Full pipeline (Planner+Stylist+Visualizer+Critic). Use `demo_planner_critic` to skip Stylist, or `vanilla` for single-shot. |
 | `--aspect-ratio` | `16:9` | One of `21:9`, `16:9`, `3:2`, `1:1` |
-| `--max-critic-rounds` | `1` | Critique → revise loops |
+| `--max-critic-rounds` | `2` | Critique → revise loops (early-exits if critic says "No changes needed") |
 
 ### Step 3: Present & iterate
 

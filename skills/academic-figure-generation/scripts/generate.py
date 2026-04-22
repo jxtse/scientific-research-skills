@@ -63,13 +63,14 @@ async def _run(
     from agents.polish_agent import PolishAgent  # type: ignore
 
     exp = config.ExpConfig(
-        dataset_name="Demo",
+        dataset_name="PaperBananaBench",
         task_name="diagram",
         split_name="demo",
         exp_mode=exp_mode,
         retrieval_setting="none",
         max_critic_rounds=max_critic_rounds,
-        model_name="",  # use yaml defaults
+        main_model_name="",       # use yaml defaults
+        image_gen_model_name="",   # use yaml defaults
         work_dir=project_root,
     )
 
@@ -147,11 +148,13 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path, required=True, help="Where to write candidate PNGs.")
     ap.add_argument("--candidates", type=int, default=3)
     ap.add_argument("--max-concurrent", type=int, default=2)
-    ap.add_argument("--exp-mode", default="demo_planner_critic",
+    ap.add_argument("--exp-mode", default="demo_full",
                     choices=["demo_planner_critic", "demo_full", "dev_planner", "dev_full", "vanilla"],
-                    help="vanilla = skip Planner/Critic (fastest); demo_planner_critic = standard.")
+                    help="demo_full = Planner+Stylist+Visualizer+Critic (recommended); "
+                         "demo_planner_critic = skip Stylist (faster); "
+                         "vanilla = single-shot (fastest, lowest quality).")
     ap.add_argument("--aspect-ratio", default="16:9", choices=["21:9", "16:9", "3:2", "1:1"])
-    ap.add_argument("--max-critic-rounds", type=int, default=1)
+    ap.add_argument("--max-critic-rounds", type=int, default=2)
     args = ap.parse_args()
 
     project_root = args.paperbanana_root.expanduser().resolve()
