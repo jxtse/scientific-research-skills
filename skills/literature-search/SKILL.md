@@ -8,9 +8,7 @@ description: >
   PDF link). Use when the user asks to find papers / literature / publications /
   preprints / references on a topic, search for related work, look up a specific
   paper by title or DOI or arXiv ID, find papers by an author, find recent SOTA
-  / state-of-the-art work, survey a research area, look for Chinese-language
-  academic work, find papers from a specific venue (ACL, EMNLP, NeurIPS, ICML,
-  CVPR, etc.), or run a deep / comprehensive literature search with synthesis.
+  / state-of-the-art work, survey a research area, or run a deep / comprehensive literature search with synthesis.
 ---
 
 # Literature Search
