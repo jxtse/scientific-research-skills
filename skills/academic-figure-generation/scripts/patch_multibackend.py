@@ -22,7 +22,8 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
-PATCH_MARKER = "# === paperbanana-multibackend-patch ==="
+PATCH_MARKER = "# === paperbanana-multibackend-patch"  # prefix; covers all stamp variants
+PATCH_MARKER_FULL = "# === paperbanana-multibackend-patch ==="
 
 
 def _backup_once(path: Path) -> None:
@@ -49,7 +50,7 @@ def patch_generation_utils(util_path: Path) -> bool:
 
     client_block = dedent(f"""\
 
-        {PATCH_MARKER}
+        {PATCH_MARKER_FULL}
         # OpenRouter chat-completions client (used for image-output models such as
         # openai/gpt-5.4-image-2).
         openrouter_api_key = get_config_val(
@@ -134,7 +135,7 @@ def patch_generation_utils(util_path: Path) -> bool:
     )
 
     # 3) Append helper functions at end of file.
-    src += "\n\n" + PATCH_MARKER + "\n" + _IMAGE_CHAT_HELPER + "\n\n" + _COPILOT_CHAT_HELPER + "\n# === end paperbanana-multibackend-patch ===\n"
+    src += "\n\n" + PATCH_MARKER_FULL + "\n" + _IMAGE_CHAT_HELPER + "\n\n" + _COPILOT_CHAT_HELPER + "\n# === end paperbanana-multibackend-patch ===\n"
 
     util_path.write_text(src)
     return True
@@ -287,61 +288,95 @@ async def _call_copilot_chat_async(
 
 
 def patch_visualizer_or_vanilla(agent_path: Path) -> bool:
-    """Add OpenRouter image-chat branch and tighten Gemini branch."""
+    """Add OpenRouter image-chat branch and tighten Gemini branch.
+
+    Idempotent: skips files that already have:
+      * the patch marker (re-run on our own output), OR
+      * an upstream OpenRouter dispatch branch (newer PaperBanana releases
+        ship vanilla_agent.py with the OpenRouter branch + guarded gemini
+        condition built in — nothing to do).
+    Also avoids double-appending the `and "/" not in self.model_name` guard
+    by skipping lines that already contain it.
+    """
     src = agent_path.read_text()
     if PATCH_MARKER in src:
         return False
+    # Upstream-already-patched detection: file already has both the guarded
+    # gemini branch AND an OpenRouter image dispatch.
+    has_guarded_gemini = '"gemini" in self.model_name and "/" not in self.model_name' in src
+    has_openrouter = (
+        'self.model_name.startswith("openai/")' in src
+        and 'and "image" in self.model_name' in src
+    )
+    if has_guarded_gemini and has_openrouter:
+        # Stamp marker on top so re-runs report "already patched".
+        _backup_once(agent_path)
+        agent_path.write_text(
+            "# === paperbanana-multibackend-patch: upstream already patched ===\n"
+            + src
+        )
+        return True
 
     _backup_once(agent_path)
 
-    # Tighten Gemini branch: require "/" not in model_name.
-    src = src.replace(
-        '"gemini" in self.model_name',
-        '"gemini" in self.model_name and "/" not in self.model_name',
-    )
+    # Tighten Gemini branch: require "/" not in model_name. Skip lines that
+    # already contain the guard.
+    new_lines = []
+    for line in src.splitlines(keepends=True):
+        if (
+            '"gemini" in self.model_name' in line
+            and '"/" not in self.model_name' not in line
+        ):
+            line = line.replace(
+                '"gemini" in self.model_name',
+                '"gemini" in self.model_name and "/" not in self.model_name',
+            )
+        new_lines.append(line)
+    src = "".join(new_lines)
 
     # Insert OpenRouter elif immediately before the final `else:` of the
     # model dispatch chain. We anchor on the unsupported-model raise.
     raise_line = 'raise ValueError(f"Unsupported model: {self.model_name}")'
-    if raise_line not in src:
-        raise RuntimeError(
-            f"Could not find unsupported-model raise in {agent_path.name}; layout may have changed."
+    if raise_line in src:
+        elif_block = dedent('''\
+                elif (
+                    self.model_name.startswith("openai/")
+                    and "image" in self.model_name
+                ) or (
+                    "/" in self.model_name and "image" in self.model_name
+                ):
+                    # === paperbanana-multibackend-patch ===
+                    # OpenRouter chat-completions image models
+                    # (e.g. openai/gpt-5.4-image-2,
+                    #       google/gemini-3.1-flash-image-preview)
+                    aspect_ratio = "1:1"
+                    if "additional_info" in data and "rounded_ratio" in data["additional_info"]:
+                        aspect_ratio = data["additional_info"]["rounded_ratio"]
+                    image_config = {
+                        "aspect_ratio": aspect_ratio,
+                        "quality": "high",
+                    }
+                    response_list = await generation_utils.call_openrouter_image_chat_with_retry_async(
+                        model_name=self.model_name,
+                        prompt=prompt_text,
+                        config=image_config,
+                        max_attempts=5,
+                        retry_delay=30,
+                    )
+                    # === end paperbanana-multibackend-patch ===
+                else:
+                    ''')
+        for indent in ("            ", "                "):
+            anchor = f"{indent}else:\n{indent}    {raise_line}"
+            replacement = elif_block.replace("                ", indent, 1) + raise_line
+            if anchor in src:
+                src = src.replace(anchor, replacement, 1)
+                break
+    else:
+        src = (
+            "# === paperbanana-multibackend-patch: gemini branch tightened ===\n"
+            + src
         )
-
-    elif_block = dedent('''\
-            elif (
-                self.model_name.startswith("openai/")
-                and "image" in self.model_name
-            ) or (
-                "/" in self.model_name and "image" in self.model_name
-            ):
-                # === paperbanana-multibackend-patch ===
-                # OpenRouter chat-completions image models
-                # (e.g. openai/gpt-5.4-image-2,
-                #       google/gemini-3.1-flash-image-preview)
-                aspect_ratio = "1:1"
-                if "additional_info" in data and "rounded_ratio" in data["additional_info"]:
-                    aspect_ratio = data["additional_info"]["rounded_ratio"]
-                image_config = {
-                    "aspect_ratio": aspect_ratio,
-                    "quality": "high",
-                }
-                response_list = await generation_utils.call_openrouter_image_chat_with_retry_async(
-                    model_name=self.model_name,
-                    prompt=prompt_text,
-                    config=image_config,
-                    max_attempts=5,
-                    retry_delay=30,
-                )
-                # === end paperbanana-multibackend-patch ===
-            else:
-                ''')
-
-    src = src.replace(
-        "            else:\n                " + raise_line,
-        elif_block + raise_line,
-        1,
-    )
 
     agent_path.write_text(src)
     return True

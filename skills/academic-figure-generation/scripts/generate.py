@@ -33,12 +33,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 from urllib.parse import urlparse
 
 DEFAULT_PAPERBANANA_ROOT = Path(
@@ -137,6 +139,56 @@ def _resolve_text_endpoint(
     return text_model, None
 
 
+@contextmanager
+def _temp_override_yaml(
+    yaml_path: Path,
+    image_model: Optional[str],
+    text_model: Optional[str],
+) -> Iterator[None]:
+    """Temporarily rewrite `defaults.image_model_name` / `defaults.model_name`
+    in the PaperBanana model_config.yaml, restoring the original on exit.
+
+    Only fields we actually need to change are touched; everything else is
+    left byte-identical. Backup is written next to the original as a safety
+    net in case the process is killed mid-run.
+    """
+    if not yaml_path.is_file() or (image_model is None and text_model is None):
+        yield
+        return
+
+    original = yaml_path.read_text(encoding="utf-8")
+    backup = yaml_path.with_suffix(yaml_path.suffix + ".bak.generate-py")
+    backup.write_text(original, encoding="utf-8")
+
+    new_text = original
+    if image_model is not None:
+        new_text = re.sub(
+            r'^(\s*image_model_name:\s*)"[^"]*"',
+            lambda m: f'{m.group(1)}"{image_model}"',
+            new_text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+    if text_model is not None:
+        new_text = re.sub(
+            r'^(\s*model_name:\s*)"[^"]*"',
+            lambda m: f'{m.group(1)}"{text_model}"',
+            new_text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+
+    yaml_path.write_text(new_text, encoding="utf-8")
+    try:
+        yield
+    finally:
+        yaml_path.write_text(original, encoding="utf-8")
+        try:
+            backup.unlink()
+        except OSError:
+            pass
+
+
 # ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
@@ -211,6 +263,30 @@ def main() -> int:
                     help="Keep the temporary input JSON in --out-dir for debugging.")
 
     args = ap.parse_args()
+
+    # Detect which flags the user actually typed (vs. parser defaults), so we
+    # only patch model_config.yaml when overriding intentionally.
+    user_supplied = {
+        a.lstrip("-").split("=", 1)[0].replace("-", "_")
+        for a in sys.argv[1:]
+        if a.startswith("--")
+    }
+    explicit_image_model = (
+        args.image_model
+        if (
+            "image_model" in user_supplied
+            or os.environ.get("PAPERBANANA_IMAGE_MODEL")
+        )
+        else None
+    )
+    explicit_text_model = (
+        args.text_model
+        if (
+            "text_model" in user_supplied
+            or os.environ.get("PAPERBANANA_TEXT_MODEL")
+        )
+        else None
+    )
 
     # ---- validate inputs ---------------------------------------------------
     project_root = args.paperbanana_root.expanduser().resolve()
@@ -313,7 +389,9 @@ def main() -> int:
         "--max-critic-rounds", str(args.max_critic_rounds),
     ]
     print(f"info: running {' '.join(cmd)}")
-    rc = subprocess.call(cmd, env=env)
+    yaml_path = project_root / "configs" / "model_config.yaml"
+    with _temp_override_yaml(yaml_path, explicit_image_model, explicit_text_model):
+        rc = subprocess.call(cmd, env=env)
 
     if not args.keep_input_json:
         try:
