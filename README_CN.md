@@ -53,6 +53,7 @@
 | Skill | 需配置项 | 获取方式 | 必需？ |
 |-------|---------|---------|---------|
 | `literature-search` | 以下任意一个：`TAVILY_API_KEY`、`EXA_API_KEY`、`GEMINI_API_KEY`、`AMINER_API_KEY` | 见[搜索引擎](#搜索引擎-用于-literature-search)。Semantic Scholar + arXiv 免配置。 | 至少配一个 |
+| `paper-fulltext-harvest` | 可选：`ELSEVIER_API_KEY`+`ELSEVIER_INSTTOKEN`、`WILEY_TDM_TOKEN`、`SPRINGER_API_KEY`、`UNPAYWALL_EMAIL`、`CROSSREF_MAILTO`、`OPENALEX_MAILTO` | 见[出版商 TDM Keys](#出版商-tdm-keys-paper-fulltext-harvest-用)。仅需邮箱即可走 OA-only 模式。 | 付费文献需要 |
 | `social-media-paper-triage` | 大多数 URL 用 Jina Reader（免配置）即可。Twitter/X 需装 [xreach](https://github.com/xreach/xreach)；小红书/微博/微信需装 [Agent Reach](https://github.com/Panniantong/Agent-Reach)。 | 见[社交媒体阅读](#社交媒体阅读-用于-social-media-paper-triage) | 限制平台才需 |
 | `zotero-management` | `ZOTERO_API_KEY` + `ZOTERO_USER_ID` | [zotero.org/settings/keys](https://www.zotero.org/settings/keys) | 必需 |
 | `academic-figure-generation` | [PaperBanana](https://github.com/paperbanana/PaperBanana) 本地部署 | 见该 skill 的 SKILL.md | 必需 |
@@ -85,6 +86,7 @@
 |-------|------|------|
 | **[literature-search](skills/literature-search/)** | 多引擎自适应学术文献搜索,覆盖 Semantic Scholar、arXiv、Tavily、Exa、Gemini 深度搜索等 | 至少一个搜索引擎 API key |
 | **[paper-reading](skills/paper-reading/)** | 三级论文阅读法(快速扫描 → 标准阅读 → 深度分析),结构化摘要输出 | PDF 访问 |
+| **[paper-fulltext-harvest](skills/paper-fulltext-harvest/)** | 从 DOI 列表批量下载论文全文 (PDF/XML)。自动路由到出版商 TDM API (Elsevier、Wiley、Springer)、OA 聚合器 (Unpaywall、OpenAlex、Crossref)，以及为 Cloudflare 保护出版商提供浏览器回退方案。 | 可选：付费内容需出版商 TDM keys |
 | **[social-media-paper-triage](skills/social-media-paper-triage/)** | 从社交媒体(小红书、微信公众号、Twitter/X 等)提取论文推荐,查找原文,评估相关性 | Agent Reach 或 Jina Reader |
 | **[related-work-survey](skills/related-work-survey/)** | 系统性文献调研:定义维度 → 分轴搜索 → 构建分类体系 → 识别研究空白 → 定位贡献 | literature-search skill |
 | **[zotero-management](skills/zotero-management/)** | 结构化 Zotero 文献库管理,含 collection、标签、项目化组织 | Zotero + API key |
@@ -92,7 +94,7 @@
 
 ### Skill 分类
 
-- 🔧 **需要外部工具** - literature-search、social-media-paper-triage、zotero-management、academic-figure-generation
+- 🔧 **需要外部工具** - literature-search、social-media-paper-triage、zotero-management、academic-figure-generation、paper-fulltext-harvest
 - 📋 **纯方法论** - paper-reading、related-work-survey
 
 ---
@@ -199,6 +201,29 @@ export ZOTERO_USER_ID="..."
 ### 学术图表生成(academic-figure-generation 用)
 
 需要 [PaperBanana](https://github.com/paperbanana/PaperBanana) 本地部署。详见 skill 的 SKILL.md。
+
+### 出版商 TDM Keys (paper-fulltext-harvest 用)
+
+所有 keys 都是可选的 — 仅需 `UNPAYWALL_EMAIL` 即可走 OA-only 模式。配置如下 key 以解锁付费内容的机构 TDM (Text and Data Mining) API 访问：
+
+| Key | 解锁什么 | 如何获取 |
+|-----|---------|---------|
+| `ELSEVIER_API_KEY` + `ELSEVIER_INSTTOKEN` | Elsevier ScienceDirect 全文 XML | API key 免费注册 [dev.elsevier.com](https://dev.elsevier.com/)。Insttoken 需图书馆向 Elsevier 申请。 |
+| `WILEY_TDM_TOKEN` | Wiley Online Library 全文 PDF | 图书馆需签署 [Wiley TDM 协议](https://onlinelibrary.wiley.com/library-info/resources/text-and-datamining)，token 发给一个机构联系人。 |
+| `SPRINGER_API_KEY` | Springer Nature OpenAccess 全文 | 免费注册 [dev.springernature.com](https://dev.springernature.com/) |
+| `UNPAYWALL_EMAIL` | 跨出版商的 OA PDF | 填写邮箱 |
+| `CROSSREF_MAILTO`, `OPENALEX_MAILTO` | Crossref/OpenAlex polite-pool 限流提高 | 填写邮箱（推荐） |
+
+对于没有 TDM 的付费出版商 (ACS、RSC、T&F、许多中文期刊)，skill 包含一个浏览器回退方案 — 通过 OpenClaw 的 `browser` 工具 + `profile="user"` 驱动用户已登录的 Chrome。
+
+```bash
+export ELSEVIER_API_KEY="..."
+export ELSEVIER_INSTTOKEN="..."
+export WILEY_TDM_TOKEN="..."
+export UNPAYWALL_EMAIL="you@institution.edu"
+```
+
+**重要：** TDM API 要求请求从机构 IP 白名单发出 — 必须在机构网络或 VPN 上使用。
 
 ---
 

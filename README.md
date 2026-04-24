@@ -53,6 +53,7 @@ Then, for each skill the user agrees to configure, **walk them through it intera
 | Skill | What to configure | Where to get it | Required? |
 |-------|------------------|-----------------|-----------|
 | `literature-search` | At least one of: `TAVILY_API_KEY`, `EXA_API_KEY`, `GEMINI_API_KEY`, `AMINER_API_KEY` | See [Search Engines](#search-engines-for-literature-search). Semantic Scholar + arXiv work with no key. | At least one recommended |
+| `paper-fulltext-harvest` | Optional: `ELSEVIER_API_KEY`+`ELSEVIER_INSTTOKEN`, `WILEY_TDM_TOKEN`, `SPRINGER_API_KEY`, `UNPAYWALL_EMAIL`, `CROSSREF_MAILTO`, `OPENALEX_MAILTO` | See [Publisher TDM Keys](#publisher-tdm-keys-for-paper-fulltext-harvest). OA-only mode works with just emails. | Required for paywalled content |
 | `social-media-paper-triage` | Jina Reader (no key) is enough for most URLs. For Twitter/X: install [xreach](https://github.com/xreach/xreach). For 小红书/微博/微信: install [Agent Reach](https://github.com/Panniantong/Agent-Reach). | See [Social Media Reading](#social-media-reading-for-social-media-paper-triage) | Optional unless using gated platforms |
 | `zotero-management` | `ZOTERO_API_KEY` + `ZOTERO_USER_ID` | [zotero.org/settings/keys](https://www.zotero.org/settings/keys) | Required |
 | `academic-figure-generation` | [PaperBanana](https://github.com/paperbanana/PaperBanana) local deployment | See skill's SKILL.md | Required |
@@ -85,6 +86,7 @@ After configuration, summarize: which skills are fully working, which are instal
 |-------|-------------|--------------|
 | **[literature-search](skills/literature-search/)** | Multi-engine academic paper search with adaptive engine selection. Covers Semantic Scholar, arXiv, Tavily, Exa, Gemini deep research, and more. | At least one search engine API key |
 | **[paper-reading](skills/paper-reading/)** | Three-level paper reading (skim → read → deep analysis) with structured digest output. | PDF access |
+| **[paper-fulltext-harvest](skills/paper-fulltext-harvest/)** | Batch download paper full-text (PDF/XML) from a DOI list. Routes to publisher TDM APIs (Elsevier, Wiley, Springer), OA aggregators (Unpaywall, OpenAlex, Crossref), and a browser fallback for Cloudflare-protected publishers. | Optional: publisher TDM keys for paywalled content |
 | **[social-media-paper-triage](skills/social-media-paper-triage/)** | Extract paper recommendations from social media (小红书, WeChat, Twitter/X, etc.), find original sources, and triage for relevance. | Agent Reach or Jina Reader |
 | **[related-work-survey](skills/related-work-survey/)** | Systematic literature survey: define dimensions → search each axis → build taxonomy → identify gap → position your contribution. | literature-search skill |
 | **[zotero-management](skills/zotero-management/)** | Structured Zotero library management with collections, tags, project-based organization. | Zotero + API key |
@@ -93,7 +95,7 @@ After configuration, summarize: which skills are fully working, which are instal
 
 ### Skill categories
 
-- 🔧 **Tool-integrated** — require external APIs or tools: literature-search, social-media-paper-triage, zotero-management, academic-figure-generation
+- 🔧 **Tool-integrated** — require external APIs or tools: literature-search, social-media-paper-triage, zotero-management, academic-figure-generation, paper-fulltext-harvest
 - 📋 **Methodology-only** — pure workflow guidance, no dependencies: paper-reading, related-work-survey
 
 ---
@@ -201,6 +203,29 @@ export ZOTERO_USER_ID="..."
 ### Academic Figure Generation (for academic-figure-generation)
 
 Requires [PaperBanana](https://github.com/paperbanana/PaperBanana) local deployment. See the skill's SKILL.md for setup details.
+
+### Publisher TDM Keys (for paper-fulltext-harvest)
+
+All keys are optional — the skill works in OA-only mode with just `UNPAYWALL_EMAIL` set. Configure these to unlock paywalled content via institutional TDM (Text and Data Mining) APIs:
+
+| Key | What it unlocks | How to get |
+|-----|----------------|-----------|
+| `ELSEVIER_API_KEY` + `ELSEVIER_INSTTOKEN` | Elsevier ScienceDirect full-text XML | API key: free at [dev.elsevier.com](https://dev.elsevier.com/). Insttoken: ask your library to request from Elsevier. |
+| `WILEY_TDM_TOKEN` | Wiley Online Library PDFs | Library must sign Wiley's TDM agreement at [Wiley TDM page](https://onlinelibrary.wiley.com/library-info/resources/text-and-datamining); token is issued to one institutional contact. |
+| `SPRINGER_API_KEY` | Springer Nature OpenAccess full-text | Free at [dev.springernature.com](https://dev.springernature.com/) |
+| `UNPAYWALL_EMAIL` | OA PDFs across all publishers | Just your email |
+| `CROSSREF_MAILTO`, `OPENALEX_MAILTO` | Polite-pool rate limits on Crossref/OpenAlex | Just your email (recommended for politeness) |
+
+For paywalled publishers without TDM (ACS, RSC, T&F, many Chinese journals), the skill includes a browser fallback that drives the user's logged-in Chrome via OpenClaw's `browser` tool with `profile="user"`.
+
+```bash
+export ELSEVIER_API_KEY="..."
+export ELSEVIER_INSTTOKEN="..."
+export WILEY_TDM_TOKEN="..."
+export UNPAYWALL_EMAIL="you@institution.edu"
+```
+
+**Critical:** TDM APIs require the request to come from an institution-allowlisted IP — you must be on the institutional network or VPN.
 
 ---
 
